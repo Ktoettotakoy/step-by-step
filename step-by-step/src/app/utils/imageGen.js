@@ -2,9 +2,8 @@
   // Replace 'YOUR_GEMINI_API_KEY' with your actual API key for the demo
   // In a real application, this would be handled on the backend
   import { GoogleGenerativeAI } from "@google/generative-ai";
-  
-  const API_KEY = "YOUR_GEMINI_API_KEY"; // Replace with your API key
-  const genAI = new GoogleGenerativeAI(API_KEY);
+   // Replace with your API key
+  const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY);
   
   /**
    * Calls the Gemini API to generate a cartoon-style image based on a prompt.
@@ -16,7 +15,7 @@
   async function generateImageWithGemini() {
     try {
       // Replace 'your-image-generation-model' with the actual Gemini model name for image generation
-      const model = genAI.getGenerativeModel({ model: "your-image-generation-model" });
+      const model = genAI.getGenerativeModel( { model: "gemini-2.5-flash" } );
   
       const prompt = `
         we are doing the app that generates images for kids.
@@ -49,6 +48,28 @@
     }
   }
   
+  async function generateGuessingWords() {
+    try {
+  
+      const prompt = `
+        we are doing the app that generates images for kids and they need to guess what is on the image.
+        create the 10 words of what can kid guess (3-4 year old) of this list:
+        1. any animal
+        2. the number up to 10
+        3. the letter of the alphabet.
+        as output just give the 10 words separeted by space
+      `;
+  
+      const result = await genAI.generateContent(prompt);
+      const response = await result.response;
+      const wordsString = response.text();
+      return wordsString.split(' ');
+    } catch (error) {
+      console.error("Error generating guessing words with Gemini:", error);
+      return [];
+    }
+  }
+
   // Example usage:
   // async function displayGeneratedImage() {
   //   const result = await generateImageWithGemini();
@@ -66,4 +87,4 @@
   // displayGeneratedImage();
   
   // You can export this function if needed in other files
-export { generateImageWithGemini };
+export { generateImageWithGemini, generateGuessingWords };
