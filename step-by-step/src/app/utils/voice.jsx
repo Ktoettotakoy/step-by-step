@@ -5,51 +5,51 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 // Initialize the API client with the correctly prefixed environment variable
 const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY);
 
-async function getVoiceMessage(inputText) {
-    try {
-        // Get the model for TTS
-        const model = genAI.getGenerativeModel({
-            model: "gemini-2.0-flash-exp",
-            generationConfig: {
-                temperature: 0.9,
-            }
-        });
+// async function getVoiceMessage(inputText) {
+//     try {
+//         // Get the model for TTS
+//         const model = genAI.getGenerativeModel({
+//             model: "gemini-2.0-flash-exp",
+//             generationConfig: {
+//                 temperature: 0.9,
+//             }
+//         });
 
-        const result = await model.generateContent({
-            contents: [{
-                parts: [{ text: inputText }]
-            }],
-            generationConfig: {
-                responseModalities: ['AUDIO'],
-                speechConfig: {
-                    voiceConfig: {
-                        prebuiltVoiceConfig: { voiceName: 'Kore' },
-                    },
-                },
-            },
-        });
+//         const result = await model.generateContent({
+//             contents: [{
+//                 parts: [{ text: inputText }]
+//             }],
+//             generationConfig: {
+//                 responseModalities: ['AUDIO'],
+//                 speechConfig: {
+//                     voiceConfig: {
+//                         prebuiltVoiceConfig: { voiceName: 'Kore' },
+//                     },
+//                 },
+//             },
+//         });
 
-        const response = await result.response;
-        const audioData = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+//         const response = await result.response;
+//         const audioData = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
 
-        if (!audioData) {
-            console.error("No audio data received from Gemini API.");
-            return null;
-        }
+//         if (!audioData) {
+//             console.error("No audio data received from Gemini API.");
+//             return null;
+//         }
 
-        // Convert base64 string to Uint8Array
-        const binaryString = atob(audioData);
-        const len = binaryString.length;
-        const bytes = new Uint8Array(len);
-        for (let i = 0; i < len; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-        }
-        return bytes;
-    } catch (error) {
-        console.error("Error generating voice message:", error);
-        return null;
-    }
-}
+//         // Convert base64 string to Uint8Array
+//         const binaryString = atob(audioData);
+//         const len = binaryString.length;
+//         const bytes = new Uint8Array(len);
+//         for (let i = 0; i < len; i++) {
+//             bytes[i] = binaryString.charCodeAt(i);
+//         }
+//         return bytes;
+//     } catch (error) {
+//         console.error("Error generating voice message:", error);
+//         return null;
+//     }
+// }
 
 async function playVoiceFromText(inputText) {
     try {
@@ -135,4 +135,5 @@ function containsWordCaseInsensitive(text, word) {
 }
 
 // Export the functions
-export { getVoiceMessage, playVoiceFromText, transcribeAudioWithGemini, containsWordCaseInsensitive };
+export { playVoiceFromText, transcribeAudioWithGemini, containsWordCaseInsensitive };
+// getVoiceMessage

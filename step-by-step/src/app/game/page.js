@@ -10,103 +10,120 @@ import { generateImageForWord } from '../utils/imageGen'; // Import image genera
 import LoadingSpinner from '../ui/components/LoadingSpinner'; // Import the new spinner component
 
 
-const MAX_CARDS_PER_ROUND = 10;
+const MAX_CARDS_PER_ROUND = 3;
 
 export default function GameScreen() {
-    const [gameWords, setGameWords] = useState([]);
+    // This will now store the full card objects (word + imageSrc)
+    const [gameCards, setGameCards] = useState([]);
     const [isLoadingGameData, setIsLoadingGameData] = useState(true);
-    const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+    // isGeneratingImage is largely redundant now as all images are part of initial load
+    // const [isGeneratingImage, setIsGeneratingImage] = useState(false);
 
     const [currentCard, setCurrentCard] = useState(null);
     const [score, setScore] = useState(0);
-    const [cardIndex, setCardIndex] = useState(0);
+    const [cardIndex, setCardIndex] = useState(0); // Use index to track progress through gameCards
     const [wrongCards, setWrongCards] = useState([]);
-    const [gamePhase, setGamePhase] = useState('loading');
+    const [gamePhase, setGamePhase] = useState('loading'); // 'loading' (initial data/image), 'displayingCard', 'listening', 'feedback', 'results', 'wrongAnswers'
     const [isListening, setIsListening] = useState(false);
     const [feedbackMessage, setFeedbackMessage] = useState('');
     const [lastVoiceInput, setLastVoiceInput] = useState('');
 
+    // MediaRecorder specific state and refs
     const mediaRecorderRef = useRef(null);
     const audioChunksRef = useRef([]);
     const audioStreamRef = useRef(null);
 
-    // --- EFFECT TO GENERATE GAME WORDS ON MOUNT ---
+    // --- EFFECT TO GENERATE ALL GAME CARDS (WORDS + IMAGES) ON MOUNT ---
     useEffect(() => {
-        const fetchAndSetWords = async () => {
+        const fetchAndGenerateAllCards = async () => {
             try {
                 setIsLoadingGameData(true);
-                setGamePhase('loading'); // Explicitly set phase to loading for initial words
+                setGamePhase('loading'); // Explicitly set phase to loading
+
+                // 1. Generate guessing words
                 const words = await generateGuessingWords();
-                setGameWords(words);
+                console.log("Generated words:", words);
+
+                if (!words || words.length === 0) {
+                    throw new Error("No words generated for the game.");
+                }
+
+                // Limit words to MAX_CARDS_PER_ROUND
+                const wordsForRound = words.slice(0, MAX_CARDS_PER_ROUND);
+
+                // 2. Generate images for each word concurrently
+                const generatedCardPromises = wordsForRound.map(async (word, index) => {
+                    let imageSrc;
+                    try {
+                        imageSrc = await generateImageForWord(word);
+                    } catch (imageError) {
+                        console.error(`Error generating image for "${word}":`, imageError);
+                        imageSrc = 'https://via.placeholder.com/150/CCCCCC/000000?text=Error'; // Fallback image
+                    }
+                    return {
+                        id: `${word}-${index}`, // Unique ID
+                        word: word,
+                        imageSrc: imageSrc,
+                        metadata: word, // You can put more metadata here if needed
+                    };
+                });
+
+                const allGeneratedCards = await Promise.all(generatedCardPromises);
+                setGameCards(allGeneratedCards);
+                console.log("All generated game cards:", allGeneratedCards);
+
             } catch (err) {
-                console.error("Error generating game words:", err);
-                setFeedbackMessage("Failed to load game words. Please refresh.");
-                // Potentially set gamePhase to an error state to display a message
+                console.error("Error generating all game data:", err);
+                setFeedbackMessage("Failed to load game data. Please refresh.");
+                // Set gameCards to empty array to display 'No game words generated' message
+                setGameCards([]);
             } finally {
                 setIsLoadingGameData(false);
             }
         };
 
-        fetchAndSetWords();
-    }, []);
+        fetchAndGenerateAllCards();
+    }, []); // Runs only once on component mount
 
-    // Function to load the next card - now includes image generation
-    const loadNextCard = useCallback(async () => {
-        if (gameWords.length === 0 || isLoadingGameData) {
-            return; // Wait for words to be loaded
-        }
-
-        if (cardIndex >= gameWords.length || cardIndex >= MAX_CARDS_PER_ROUND) {
-            setGamePhase('results');
+    // Function to load the next card - now it just picks from pre-generated cards
+    const loadNextCard = useCallback(() => {
+        if (gameCards.length === 0 || isLoadingGameData) {
+            // This should ideally not happen if isLoadingGameData is false and gameCards is populated
+            console.warn("Attempted to load card before game data is ready or available.");
             return;
         }
 
-        const nextWord = gameWords[cardIndex];
-        setFeedbackMessage('');
-        setLastVoiceInput('');
-        setGamePhase('loading'); // Set to loading while fetching image
-
-        setIsGeneratingImage(true);
-        let imageUrl;
-        try {
-            imageUrl = await generateImageForWord(nextWord);
-        } catch (error) {
-            console.error('Error generating image for word:', nextWord, error);
-            imageUrl = 'https://via.placeholder.com/150/CCCCCC/000000?text=Error';
-        } finally {
-            setIsGeneratingImage(false);
+        if (cardIndex >= gameCards.length) { // Check against actual number of generated cards
+            setGamePhase('results'); // No more cards, go to results
+            return;
         }
 
-        setCurrentCard({
-            id: nextWord,
-            imageSrc: imageUrl,
-            word: nextWord,
-            metadata: nextWord,
-        });
-        setCardIndex(prev => prev + 1);
-        setGamePhase('displayingCard');
-    }, [cardIndex, gameWords, isLoadingGameData]);
+        const nextCardData = gameCards[cardIndex]; // Get the pre-generated card
+        setFeedbackMessage('');
+        setLastVoiceInput('');
+        setCurrentCard(nextCardData);
+        setCardIndex(prev => prev + 1); // Move to the next card for the next round
+        setGamePhase('displayingCard'); // Card is ready to be displayed
+    }, [cardIndex, gameCards, isLoadingGameData]);
 
     // Initial card load and subsequent card loads
     useEffect(() => {
-        // Trigger loading the first card once `gameWords` are available
-        // and if we are in the 'loading' phase (e.g., after initial word fetch or new round)
-        // and no image is currently being generated, and currentCard isn't set yet for this phase
-        if (!isLoadingGameData && gameWords.length > 0 && gamePhase === 'loading' && !currentCard && !isGeneratingImage) {
+        // Trigger loading the first card once `gameCards` are available and loading is complete
+        if (!isLoadingGameData && gameCards.length > 0 && gamePhase === 'loading' && !currentCard) {
             loadNextCard();
         }
-    }, [isLoadingGameData, gameWords, gamePhase, currentCard, isGeneratingImage, loadNextCard]);
+    }, [isLoadingGameData, gameCards, gamePhase, currentCard, loadNextCard]);
 
     // Play card word audio when a new card is displayed
     useEffect(() => {
-        if (gamePhase === 'displayingCard' && currentCard && !isGeneratingImage) {
+        if (gamePhase === 'displayingCard' && currentCard) {
             const playTimeout = setTimeout(() => {
                 playVoiceFromText(currentCard.word);
             }, 500);
 
             return () => clearTimeout(playTimeout);
         }
-    }, [gamePhase, currentCard, isGeneratingImage]);
+    }, [gamePhase, currentCard]);
 
     // Cleanup function for media stream
     useEffect(() => {
@@ -206,8 +223,8 @@ export default function GameScreen() {
         setScore(0);
         setCardIndex(0);
         setWrongCards([]);
-        setGameWords([]); // Clear words to force re-fetch and generate new words
-        setIsLoadingGameData(true); // Set to true to trigger the useEffect to fetch new words
+        setGameCards([]); // Clear cards to force re-fetch and generate new ones
+        setIsLoadingGameData(true); // Set to true to trigger the useEffect to fetch new cards
         setGamePhase('loading');
         setCurrentCard(null);
     };
@@ -220,18 +237,18 @@ export default function GameScreen() {
     if (isLoadingGameData) {
         return (
             <div className={`${styles.page} ${styles.gamePage}`}>
-                <main className={styles.gameMain}> {/* Use gameMain for centering */}
-                    <LoadingSpinner message="Generating game words..." />
+                <main className={styles.gameMain}>
+                    <LoadingSpinner message="Generating game cards (words & images)..." />
                 </main>
             </div>
         );
     }
 
-    if (gameWords.length === 0) {
+    if (gameCards.length === 0 && !isLoadingGameData) { // Check !isLoadingGameData to ensure it's not just pending
         return (
             <div className={`${styles.page} ${styles.gamePage}`}>
                 <main className={styles.gameMain}>
-                    <p className={styles.feedbackMessage}>No game words generated. Please try again.</p>
+                    <p className={styles.feedbackMessage}>No game cards could be generated. Please try again.</p>
                     <button onClick={handleStartNewRound} className={`${styles.button} ${styles.resultsButton}`}>
                         Retry
                     </button>
@@ -240,12 +257,16 @@ export default function GameScreen() {
         );
     }
 
-    // This phase occurs while an individual card's image is being generated or prepared
-    if (gamePhase === 'loading' || (gamePhase === 'displayingCard' && !currentCard)) {
+    // After initial loading, if gamePhase is 'loading' it means we're preparing the next card
+    // (but its image is already generated, just setting state).
+    // This case might still be relevant for a very quick state transition,
+    // or if you want a subtle spinner between cards.
+    // If not, you can remove this specific `if` block, as `displayingCard` will immediately follow.
+    if (gamePhase === 'loading' && !currentCard) {
         return (
             <div className={`${styles.page} ${styles.gamePage}`}>
                 <main className={styles.gameMain}>
-                    <LoadingSpinner message={isGeneratingImage ? "Generating card image..." : "Preparing card..."} />
+                    <LoadingSpinner message="Preparing next card..." />
                 </main>
             </div>
         );
@@ -255,7 +276,7 @@ export default function GameScreen() {
         <div className={`${styles.page} ${styles.gamePage}`}>
             <header className={styles.gameHeader}>
                 <p>Score: {score} / {cardIndex - 1}</p>
-                <p>Card: {cardIndex} / {MAX_CARDS_PER_ROUND}</p>
+                <p>Card: {cardIndex} / {gameCards.length}</p> {/* Use gameCards.length for total */}
             </header>
 
             <main className={styles.gameMain}>
@@ -292,14 +313,14 @@ export default function GameScreen() {
                 {gamePhase === 'results' && (
                     <div className={styles.resultsContainer}>
                         <h2>Round Over!</h2>
-                        <p>Your final score: {score} out of {MAX_CARDS_PER_ROUND}</p>
+                        <p>Your final score: {score} out of {gameCards.length}</p> {/* Use gameCards.length */}
                         {wrongCards.length > 0 && (
                             <button onClick={handleShowWrongAnswers} className={`${styles.button} ${styles.resultsButton}`}>
                                 Review Mistakes ({wrongCards.length})
                             </button>
                         )}
                         <button onClick={handleStartNewRound} className={`${styles.button} ${styles.resultsButton}`}>
-                            Play Another Round
+                                Play Another Round
                         </button>
                     </div>
                 )}
