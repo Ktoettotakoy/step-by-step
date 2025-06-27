@@ -91,6 +91,7 @@ async function playVoiceFromText(inputText) {
         URL.revokeObjectURL(audioUrl);
         console.error("Error playing audio.");
     };
+    
 }
 
 // Export only the functions that are intended for client-side use.
