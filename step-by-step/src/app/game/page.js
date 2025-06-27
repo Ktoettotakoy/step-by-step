@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import styles from './game.module.css'; // Adjust path as needed
 
 // Make sure these imports are correct based on your file structure
-import { playVoiceFromText, transcribeAudioWithGemini, containsWordCaseInsensitive } from '../utils/voice';
+import { transcribeAudioWithGemini, containsWordCaseInsensitive } from '../utils/voice';
 import { generateGuessingWords } from '../utils/textGen'; // Import word generation
 import { generateImageForWord } from '../utils/imageGen'; // Import image generation
 import LoadingSpinner from '../ui/components/LoadingSpinner'; // Import the new spinner component
@@ -115,15 +115,15 @@ export default function GameScreen() {
     }, [isLoadingGameData, gameCards, gamePhase, currentCard, loadNextCard]);
 
     // Play card word audio when a new card is displayed
-    useEffect(() => {
-        if (gamePhase === 'displayingCard' && currentCard) {
-            const playTimeout = setTimeout(() => {
-                playVoiceFromText(currentCard.word);
-            }, 500);
+    // useEffect(() => {
+    //     if (gamePhase === 'displayingCard' && currentCard) {
+    //         const playTimeout = setTimeout(() => {
+    //             playVoiceFromText(currentCard.word);
+    //         }, 500);
 
-            return () => clearTimeout(playTimeout);
-        }
-    }, [gamePhase, currentCard]);
+    //         return () => clearTimeout(playTimeout);
+    //     }
+    // }, [gamePhase, currentCard]);
 
     // Cleanup function for media stream
     useEffect(() => {

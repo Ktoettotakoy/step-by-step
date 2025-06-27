@@ -51,35 +51,35 @@ const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY);
 //     }
 // }
 
-async function playVoiceFromText(inputText) {
-    try {
-        const audioBytes = await getVoiceMessage(inputText);
+// async function playVoiceFromText(inputText) {
+//     try {
+//         const audioBytes = await getVoiceMessage(inputText);
 
-        if (!audioBytes) {
-            console.error("No audio bytes received");
-            return;
-        }
+//         if (!audioBytes) {
+//             console.error("No audio bytes received");
+//             return;
+//         }
 
-        // Create audio blob with proper MIME type
-        const audioBlob = new Blob([audioBytes], { type: 'audio/mp3' });
-        const audioUrl = URL.createObjectURL(audioBlob);
-        const audio = new Audio(audioUrl);
+//         // Create audio blob with proper MIME type
+//         const audioBlob = new Blob([audioBytes], { type: 'audio/mp3' });
+//         const audioUrl = URL.createObjectURL(audioBlob);
+//         const audio = new Audio(audioUrl);
 
-        // Add error handling for audio playback
-        audio.onerror = (error) => {
-            console.error("Audio playback error:", error);
-            URL.revokeObjectURL(audioUrl);
-        };
+//         // Add error handling for audio playback
+//         audio.onerror = (error) => {
+//             console.error("Audio playback error:", error);
+//             URL.revokeObjectURL(audioUrl);
+//         };
 
-        audio.onended = () => {
-            URL.revokeObjectURL(audioUrl);
-        };
+//         audio.onended = () => {
+//             URL.revokeObjectURL(audioUrl);
+//         };
 
-        await audio.play();
-    } catch (error) {
-        console.error("Error playing voice:", error);
-    }
-}
+//         await audio.play();
+//     } catch (error) {
+//         console.error("Error playing voice:", error);
+//     }
+// }
 
 /**
  * Sends an audio Blob to the Gemini API for speech-to-text conversion.
@@ -135,5 +135,5 @@ function containsWordCaseInsensitive(text, word) {
 }
 
 // Export the functions
-export { playVoiceFromText, transcribeAudioWithGemini, containsWordCaseInsensitive };
-// getVoiceMessage
+export { transcribeAudioWithGemini, containsWordCaseInsensitive };
+// getVoiceMessage, playVoiceFromText
