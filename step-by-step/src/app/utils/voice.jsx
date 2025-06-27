@@ -1,10 +1,10 @@
-'use client'; // <-- IMPORTANT: Add this directive
+'use client';
 
 import { GoogleGenAI } from '@google/genai';
 
 // Initialize the API client with the correctly prefixed environment variable
 const geminiAI = new GoogleGenAI({ apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY });
-
+// console.log("Gemini AI initialized with API key:", process.env.NEXT_PUBLIC_GEMINI_API_KEY);
 // The saveWaveFile function is problematic for a browser environment.
 // If your goal is to *save* the audio file from the browser,
 // you would typically create a download link.
