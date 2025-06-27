@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import styles from './game.module.css'; // Adjust path as needed
 
 // Make sure these imports are correct based on your file structure
-import { getVoiceMessage, playVoiceFromText, transcribeAudioWithGemini, containsWordCaseInsensitive } from '../utils/voice';
+import { playVoiceFromText, transcribeAudioWithGemini, containsWordCaseInsensitive } from '../utils/voice';
 import { generateGuessingWords } from '../utils/textGen'; // Import word generation
 import { generateImageForWord } from '../utils/imageGen'; // Import image generation
 import LoadingSpinner from '../ui/components/LoadingSpinner'; // Import the new spinner component
@@ -155,7 +155,7 @@ export default function GameScreen() {
 
                 const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
                 console.log("Audio Blob created:", audioBlob);
-                
+
                 // console.log("Transcribed from blob: " + (await transcribeAudioFromBlob(audioBlob)))
 
                 setIsListening(false);
