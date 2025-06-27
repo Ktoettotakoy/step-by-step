@@ -25,6 +25,23 @@ export default function Home() {
     router.push('/game');
   };
 
+  const handleYouTubeUrlInput = () => {
+    // This will open a small pop-up asking for user input
+    const youtubeUrl = window.prompt("Please enter a YouTube video URL:");
+
+    // At this point, the 'youtubeUrl' variable will contain the user's input
+    // or null if they pressed cancel.
+    // The requirement is to 'do nothing' with it, so we'll just log it for demonstration.
+    if (youtubeUrl !== null) {
+      console.log("YouTube URL entered (doing nothing with it for now):", youtubeUrl);
+      // You could add a small alert here for user feedback if desired, e.g.,
+      // alert("Thanks! We've received your URL (but are not using it yet).");
+      router.push('/sampled');
+    } else {
+      console.log("User cancelled YouTube URL input.");
+    }
+  };
+
   return (
     <div className={styles.page}>
       {/* Hero Section */}
@@ -55,6 +72,12 @@ export default function Home() {
               // disabled={isLoadingGameData || error}
             >
               Start
+            </button>
+            <button
+              className={`${styles.button} ${styles.projectsButton}`} // You might want a different style for this button
+              onClick={handleYouTubeUrlInput}
+            >
+              Enter YouTube URL
             </button>
           </div>
           {/* No error message display here anymore */}
