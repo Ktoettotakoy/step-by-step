@@ -73,7 +73,7 @@
         numberOfImages: 1,
       },
     });
-    
+
     const generatedImage = response.generatedImages[0];
     
     let imgBytes = generatedImage.image.imageBytes;
@@ -99,5 +99,28 @@
   // displayGeneratedImage();
   
   // You can export this function if needed in other files
+
+  const base64AudioFile = fs.readFileSync("path/to/small-sample.mp3", {
+    encoding: "base64",
+  });
+  
+  const contents = [
+    { text: "Please summarize the audio." },
+    {
+      inlineData: {
+        mimeType: "audio/mp3",
+        data: base64AudioFile,
+      },
+    },
+  ];
+  
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: contents,
+  });
+  console.log(response.text);
+
+
+
 export { generateImageWithGemini, generateGuessingWords, generateImage };
 

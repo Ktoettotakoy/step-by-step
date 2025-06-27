@@ -6,6 +6,27 @@ import styles from './game.module.css';
 import { getVoiceMessage, playVoiceFromText, transcribeAudioWithGemini, containsWordCaseInsensitive } from '../utils/voice';
 
 
+const saveAudioBlobToFile = (audioBlob, fileName) => {
+    // Create a temporary URL for the blob object.
+    const url = URL.createObjectURL(audioBlob);
+
+    // Create a temporary anchor element.
+    const a = document.createElement('a');
+    document.body.appendChild(a);
+    a.style.display = 'none';
+
+    // Set the anchor's href to the blob's URL and define the download filename.
+    a.href = url;
+    a.download = fileName;
+
+    // Programmatically click the anchor to trigger the download.
+    a.click();
+
+    // Clean up by revoking the object URL and removing the anchor.
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+};
+
 const MAX_CARDS_PER_ROUND = 5; // Reduced for easier testing, set to 10 for your requirement
 
 export default function GameScreen() {
@@ -89,6 +110,8 @@ export default function GameScreen() {
 
                 const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
                 console.log("Audio Blob created:", audioBlob);
+                
+                // console.log("Transcribed from blob: " + (await transcribeAudioFromBlob(audioBlob)))
 
                 setIsListening(false);
                 setFeedbackMessage('Transcribing...');
