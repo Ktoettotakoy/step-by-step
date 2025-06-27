@@ -7,9 +7,6 @@ function Game() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // **WARNING: Do not expose your API keys like this in a production app!**
-  const GEMINI_API_KEY = 'AIzaSyCRvrGDK4nTbXu5yWVGx8AO1t1b6o9zOFk';
-  const IMAGE_GENERATION_API_KEY = 'AIzaSyCRvrGDK4nTbXu5yWVGx8AO1t1b6o9zOFk';
 
   const generateContent = async () => {
     setLoading(true);

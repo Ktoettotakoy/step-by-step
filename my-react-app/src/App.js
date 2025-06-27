@@ -9,14 +9,10 @@ import TestUi from './ui/testUi';
 
 function App() {
   const [audioData, setAudioData] = useState(null);
-  return (
-    <div className="App">
-      <header className="App-header">
-        
-      <TestUi />
-
+return (
+      <h1>Welcome to the Game!</h1>
         // don't delete
-        <button onClick={async () => {
+        {/* <button onClick={async () => {
           const inputText = "Hello, world!";
           const audioBytes = await getVoiceMessage(inputText);
           const audioBlob = new Blob([audioBytes], { type: 'audio/wav' });
@@ -29,12 +25,10 @@ function App() {
             audio.play();
           }
         }} disabled={!audioData}>Play Voice</button>
-        <VoicePlayer />
+        <VoicePlayer /> */}
       </header>
     </div>
   );
 }
 
 export default App;
-
-
