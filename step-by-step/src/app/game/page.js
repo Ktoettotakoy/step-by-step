@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import styles from './game.module.css';
 import { getVoiceMessage, playVoiceFromText } from '../utils/voice';
 
+
 const MAX_CARDS_PER_ROUND = 5; // Reduced for easier testing, set to 10 for your requirement
 
 export default function GameScreen() {
@@ -91,6 +92,70 @@ export default function GameScreen() {
     if (gamePhase === 'loading') {
         return <div className={styles.gameContainer}>Loading game...</div>;
     }
+
+    // const prefetchCards = useCallback(async () => {
+    //     setGamePhase('loading');
+    //     // Reset currentRoundCards and index
+    //     currentRoundCards = [];
+    //     currentRoundCardIndex = 0;
+
+    //     const wordsToGenerate = [
+    //         'apple', 'banana', 'cat', 'dog', 'house',
+    //         'tree', 'car', 'book', 'sun', 'moon'
+    //     ]; // Your 10 words
+
+    //     try {
+    //         // Use Promise.all to fetch images for all words concurrently
+    //         const fetchPromises = wordsToGenerate.map(async (word, index) => {
+    //             // This is where you call your Next.js API route
+    //             const response = await fetch('/api/generate-image', { // <-- The path to your API route
+    //                 method: 'POST',
+    //                 headers: {
+    //                     'Content-Type': 'application/json',
+    //                 },
+    //                 body: JSON.stringify({
+    //                     prompt: `a vibrant, simple, realistic illustration of a ${word} for a children's learning game`
+    //                     // Refined prompt for better results
+    //                 }),
+    //             });
+
+    //             if (!response.ok) {
+    //                 const errorData = await response.json();
+    //                 console.error(`Failed to fetch image for ${word}:`, errorData.error || response.statusText);
+    //                 // Fallback to a placeholder image
+    //                 return {
+    //                     id: index + 1,
+    //                     imageSrc: `https://via.placeholder.com/300/FF0000/FFFFFF?text=${word}`, // Using 300x300
+    //                     word: word,
+    //                     metadata: word
+    //                 };
+    //             }
+
+    //             const data = await response.json();
+    //             // The API route returns an 'images' array. We expect at least one.
+    //             const imageSrc = data.images && data.images.length > 0 ? data.images[0] : `https://via.placeholder.com/300/FF0000/FFFFFF?text=${word}`;
+
+    //             return {
+    //                 id: index + 1,
+    //                 imageSrc: imageSrc,
+    //                 word: word,
+    //                 metadata: word
+    //             };
+    //         });
+
+    //         currentRoundCards = await Promise.all(fetchPromises);
+    //         // Shuffle cards if you want them in a random order each round
+    //         currentRoundCards = currentRoundCards.sort(() => Math.random() - 0.5);
+
+    //         setGamePhase('displayingCard'); // Ready to start the game
+    //         loadNextCard(); // Load the first card
+    //     } catch (error) {
+    //         console.error("Error pre-fetching cards:", error);
+    //         setGamePhase('error'); // Transition to an error state
+    //     }
+    // }, []);
+
+
 
     return (
         <div className={`${styles.page} ${styles.gamePage}`}> {/* Added a gamePage class for specific styling */}
