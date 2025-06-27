@@ -10,14 +10,14 @@ import { generateImageForWord } from '../utils/imageGen'; // Import image genera
 import LoadingSpinner from '../ui/components/LoadingSpinner'; // Import the new spinner component
 
 
-const MAX_CARDS_PER_ROUND = 3;
+const MAX_CARDS_PER_ROUND = 5;
 
 function playCorrectSound() {
     // The path '/correct.mp3' works because the file is in the /public directory.
-    
-    
+
+
     const audio = new Audio('correct.mp3');
-    
+
     // .play() returns a Promise, so we should handle potential errors.
     audio.play().catch(error => {
       // Autoplay was prevented or another error occurred.
@@ -27,10 +27,10 @@ function playCorrectSound() {
 
   function playWrongSound() {
     // The path '/correct.mp3' works because the file is in the /public directory.
-    
-    
+
+
     const audio = new Audio('wrong.mp3');
-    
+
     // .play() returns a Promise, so we should handle potential errors.
     audio.play().catch(error => {
       // Autoplay was prevented or another error occurred.

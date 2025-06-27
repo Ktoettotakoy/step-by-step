@@ -8,7 +8,7 @@ import { transcribeAudioWithGemini, containsWordCaseInsensitive } from '../utils
 import { generateImageForWord } from '../utils/imageGen';
 import LoadingSpinner from '../ui/components/LoadingSpinner'; // Import the new spinner component
 
-const MAX_CARDS_PER_ROUND = 3;
+const MAX_CARDS_PER_ROUND = 4;
 
 export default function GameScreen() {
     // This will now store the full card objects (word + imageSrc)
@@ -298,9 +298,13 @@ export default function GameScreen() {
                 )}
 
                 {gamePhase === 'listening' && (
-                    <div className={styles.feedbackContainer}>
-                        <p className={styles.feedbackMessage}>Listening for your response...</p>
-                        <button onClick={stopRecording} className={`${styles.button} ${styles.stopListenButton}`}>
+                    <div className={styles.cardContainer}>
+                        <img src={currentCard.imageSrc} alt={currentCard.word} className={styles.cardImage} />
+                        <p className={styles.cardWord}>{currentCard.word}</p>
+                        <button
+                            onClick={stopRecording}
+                            className={`${styles.button} ${styles.listenButton}`}
+                        >
                             Stop Listening
                         </button>
                     </div>
