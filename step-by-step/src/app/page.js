@@ -4,6 +4,7 @@ import TextPressure from './ui/blocks/TextAnimations/TextPressure/TextPressure';
 import Dock from './ui/blocks/Components/Dock/Dock';
 import styles from "./ui/page.module.css";
 import { useRouter } from 'next/navigation';
+import { generateGuessingWords } from './utils/textGen';
 
 export default function Home() {
   const router = useRouter();
@@ -33,11 +34,26 @@ export default function Home() {
             <button
               className={`${styles.button} ${styles.projectsButton}`}
               onClick={() => {
-                router.push('/game'); // Navigate to the Start section
+                // router.push('/game'); // Navigate to the Start section
+                generateGuessingWords().then((words) => {
+                  console.log("Generated words:", words);
+                  // You can handle the generated words here, e.g., display them or use them in the game
+                }).catch((error) => {
+                  console.error("Error generating words:", error);
+                });
               }} // Navigate to the Start section}
             >
               Start
             </button>
+              <button
+              className={`${styles.button} ${styles.projectsButton}`}
+              onClick={() => {
+
+              }} // Navigate to the Start section}
+            >
+              Image
+            </button>
+
              {/* <button className={`${styles.button} ${styles.cvButton}`}>
               <span className="material-symbols-outlined" style={{ fontSize: "50px" }}>
                 download
