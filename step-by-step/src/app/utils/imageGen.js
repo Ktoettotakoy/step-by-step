@@ -12,41 +12,41 @@
    *   containing the image data (e.g., base64 string) and the descriptive word,
    *   or null if there was an error.
    */
-  async function generateImageWithGemini() {
-    try {
-      // Replace 'your-image-generation-model' with the actual Gemini model name for image generation
-      const model = genAI.getGenerativeModel( { model: "gemini-2.5-flash" } );
+  // async function generateImageWithGemini() {
+  //   try {
+  //     // Replace 'your-image-generation-model' with the actual Gemini model name for image generation
+  //     const model = genAI.getGenerativeModel( { model: "gemini-2.5-flash" } );
   
-      const prompt = `
-        we are doing the app that generates images for kids.
-        create the cartoon style image of
-        1. any animal
-        2. the number up to 10
-        3. the letter of the alphabet.
+  //     const prompt = `
+  //       we are doing the app that generates images for kids.
+  //       create the cartoon style image of
+  //       1. any animal
+  //       2. the number up to 10
+  //       3. the letter of the alphabet.
   
-        as output, give back the image and the single word that explain what's in the image
-      `;
+  //       as output, give back the image and the single word that explain what's in the image
+  //     `;
   
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
+  //     const result = await model.generateContent(prompt);
+  //     const response = await result.response;
   
-      // Assuming the API response contains image data and a text part with the word
-      // You'll need to adjust this based on the actual API response structure
-      const image = response.image; // Adjust this to extract the image data correctly
-      const word = response.text(); // Adjust this to extract the descriptive word correctly
+  //     // Assuming the API response contains image data and a text part with the word
+  //     // You'll need to adjust this based on the actual API response structure
+  //     const image = response.image; // Adjust this to extract the image data correctly
+  //     const word = response.text(); // Adjust this to extract the descriptive word correctly
   
-      if (image && word) {
-        return { image, word };
-      } else {
-        console.error("Gemini API response did not contain both image and word.");
-        return null;
-      }
+  //     if (image && word) {
+  //       return { image, word };
+  //     } else {
+  //       console.error("Gemini API response did not contain both image and word.");
+  //       return null;
+  //     }
   
-    } catch (error) {
-      console.error("Error generating image with Gemini:", error);
-      return null;
-    }
-  }
+  //   } catch (error) {
+  //     console.error("Error generating image with Gemini:", error);
+  //     return null;
+  //   }
+  // }
   
 
   // returns a list of 10 words
@@ -73,9 +73,13 @@
         numberOfImages: 1,
       },
     });
-
-
     
+    const generatedImage = response.generatedImages[0];
+    
+    let imgBytes = generatedImage.image.imageBytes;
+    const buffer = Buffer.from(imgBytes, "base64");
+    fs.writeFileSync(`imagen-${text}.png`, buffer);
+    return `imagen-${text}.png`;
   }
 
   // Example usage:
