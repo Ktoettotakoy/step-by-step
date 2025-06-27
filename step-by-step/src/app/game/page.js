@@ -155,6 +155,8 @@ export default function GameScreen() {
 
                 const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
                 console.log("Audio Blob created:", audioBlob);
+                
+                // console.log("Transcribed from blob: " + (await transcribeAudioFromBlob(audioBlob)))
 
                 setIsListening(false);
                 setFeedbackMessage('Transcribing...');
