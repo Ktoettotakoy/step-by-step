@@ -1,8 +1,9 @@
 'use client'; // This must be a client component for interaction and hooks
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import styles from './game.module.css';
-import { getVoiceMessage, playVoiceFromText } from '../utils/voice';
+// Make sure these imports are correct based on your file structure
+import { getVoiceMessage, playVoiceFromText, transcribeAudioWithGemini, containsWordCaseInsensitive } from '../utils/voice';
 
 
 const MAX_CARDS_PER_ROUND = 5; // Reduced for easier testing, set to 10 for your requirement
@@ -17,6 +18,12 @@ export default function GameScreen() {
     const [feedbackMessage, setFeedbackMessage] = useState('');
     const [lastVoiceInput, setLastVoiceInput] = useState(''); // To display what was heard
 
+    // MediaRecorder specific state and refs
+    const mediaRecorderRef = useRef(null);
+    const audioChunksRef = useRef([]);
+    const audioStreamRef = useRef(null); // To hold the MediaStream object
+
+
     // Function to load the next card
     const loadNextCard = useCallback(() => {
         if (cardCount >= MAX_CARDS_PER_ROUND) {
@@ -24,7 +31,7 @@ export default function GameScreen() {
             return;
         }
         setCardCount(prev => prev + 1);
-        setCurrentCard(generateCardData());
+        setCurrentCard(generateCardData()); // Using the simple mock for now
         setFeedbackMessage('');
         setLastVoiceInput('');
         setGamePhase('displayingCard');
@@ -40,41 +47,112 @@ export default function GameScreen() {
     // Play card word audio when a new card is displayed
     useEffect(() => {
         if (gamePhase === 'displayingCard' && currentCard) {
-            playVoiceFromText(currentCard.word);
+            // Add a small delay before playing to ensure the component is rendered
+            const playTimeout = setTimeout(() => {
+                playVoiceFromText(currentCard.word);
+            }, 500); // Adjust delay as needed
+
+            return () => clearTimeout(playTimeout); // Cleanup timeout
         }
     }, [gamePhase, currentCard]);
 
+    // Cleanup function for media stream
+    useEffect(() => {
+        return () => {
+            // Stop all tracks on the stream when the component unmounts
+            if (audioStreamRef.current) {
+                audioStreamRef.current.getTracks().forEach(track => track.stop());
+                audioStreamRef.current = null;
+            }
+        };
+    }, []); // Run once on mount and cleanup on unmount
 
-    const handleListenClick = async () => {
+
+    const startRecording = async () => {
         setIsListening(true);
         setFeedbackMessage('Listening...');
-        try {
-            const recognizedText = await listenToVoiceInput();
-            setLastVoiceInput(recognizedText);
-            setIsListening(false);
-            setGamePhase('feedback'); // Move to feedback phase
+        setGamePhase('listening'); // Indicate that we are listening
 
-            if (currentCard && validateVoiceInput(recognizedText, currentCard.metadata)) {
-                setScore(prev => prev + 1);
-                setFeedbackMessage('Correct!');
-                await playVoiceFromText('Correct!'); // Provide audio feedback
-            } else {
-                setFeedbackMessage(`Incorrect. You said: "${recognizedText}". The correct word was: "${currentCard.word}".`);
-                await playVoiceFromText('Try again!'); // Provide audio feedback
-                if (currentCard) {
-                    setWrongCards(prev => [...prev, { ...currentCard, userAttempt: recognizedText }]);
+        try {
+            // Request microphone access
+            audioStreamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorderRef.current = new MediaRecorder(audioStreamRef.current);
+            audioChunksRef.current = [];
+
+            mediaRecorderRef.current.ondataavailable = (event) => {
+                audioChunksRef.current.push(event.data);
+            };
+
+            mediaRecorderRef.current.onstop = async () => {
+                // Ensure mediaRecorder is defined before proceeding
+                if (!mediaRecorderRef.current) return;
+
+                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+                console.log("Audio Blob created:", audioBlob);
+
+                setIsListening(false);
+                setFeedbackMessage('Transcribing...');
+                setGamePhase('feedback'); // Move to feedback phase early
+
+                let recognizedText = '';
+                try {
+                    recognizedText = await transcribeAudioWithGemini(audioBlob);
+                    recognizedText = recognizedText ? recognizedText.trim() : ''; // Clean up text
+                    setLastVoiceInput(recognizedText);
+
+                    if (currentCard && containsWordCaseInsensitive(recognizedText, currentCard.word)) {
+                        setScore(prev => prev + 1);
+                        setFeedbackMessage('Correct!');
+                        await playVoiceFromText('Correct!');
+                    } else {
+                        setFeedbackMessage(`Incorrect. You said: "${recognizedText}". The correct word was: "${currentCard.word}".`);
+                        await playVoiceFromText('Try again!');
+                        if (currentCard) {
+                            setWrongCards(prev => [...prev, { ...currentCard, userAttempt: recognizedText }]);
+                        }
+                    }
+                } catch (transcribeError) {
+                    console.error("Transcription error:", transcribeError);
+                    setFeedbackMessage('Could not transcribe audio. Please try again.');
+                    setLastVoiceInput('');
+                } finally {
+                    // Stop all tracks on the stream to release microphone
+                    if (audioStreamRef.current) {
+                        audioStreamRef.current.getTracks().forEach(track => track.stop());
+                        audioStreamRef.current = null;
+                    }
+                    // After showing feedback for a brief moment, move to next card or results
+                    setTimeout(() => {
+                        loadNextCard();
+                    }, 2000); // Show feedback for 2 seconds
                 }
-            }
+            };
+
+            mediaRecorderRef.current.start();
         } catch (error) {
-            console.error("Speech recognition error:", error);
-            setFeedbackMessage('Could not hear you. Please try again.');
+            console.error("Microphone access or recording error:", error);
+            setFeedbackMessage('Microphone access denied or error starting recording. Please allow microphone access.');
             setIsListening(false);
             setGamePhase('feedback');
-        } finally {
-            // After showing feedback for a brief moment, move to next card or results
+            // Give user time to read error, then allow them to try again
             setTimeout(() => {
-                loadNextCard(); // Move to next card or results screen
-            }, 2000); // Show feedback for 2 seconds
+                loadNextCard(); // Or set phase back to 'displayingCard' if you want them to re-attempt the same card
+            }, 3000);
+        }
+    };
+
+    const stopRecording = () => {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+            mediaRecorderRef.current.stop();
+            setIsListening(false); // Will be set to true again by onstop, but good to reset
+        }
+    };
+
+    const handleListenClick = () => {
+        if (!isListening) {
+            startRecording();
+        } else {
+            stopRecording();
         }
     };
 
@@ -93,74 +171,10 @@ export default function GameScreen() {
         return <div className={styles.gameContainer}>Loading game...</div>;
     }
 
-    // const prefetchCards = useCallback(async () => {
-    //     setGamePhase('loading');
-    //     // Reset currentRoundCards and index
-    //     currentRoundCards = [];
-    //     currentRoundCardIndex = 0;
-
-    //     const wordsToGenerate = [
-    //         'apple', 'banana', 'cat', 'dog', 'house',
-    //         'tree', 'car', 'book', 'sun', 'moon'
-    //     ]; // Your 10 words
-
-    //     try {
-    //         // Use Promise.all to fetch images for all words concurrently
-    //         const fetchPromises = wordsToGenerate.map(async (word, index) => {
-    //             // This is where you call your Next.js API route
-    //             const response = await fetch('/api/generate-image', { // <-- The path to your API route
-    //                 method: 'POST',
-    //                 headers: {
-    //                     'Content-Type': 'application/json',
-    //                 },
-    //                 body: JSON.stringify({
-    //                     prompt: `a vibrant, simple, realistic illustration of a ${word} for a children's learning game`
-    //                     // Refined prompt for better results
-    //                 }),
-    //             });
-
-    //             if (!response.ok) {
-    //                 const errorData = await response.json();
-    //                 console.error(`Failed to fetch image for ${word}:`, errorData.error || response.statusText);
-    //                 // Fallback to a placeholder image
-    //                 return {
-    //                     id: index + 1,
-    //                     imageSrc: `https://via.placeholder.com/300/FF0000/FFFFFF?text=${word}`, // Using 300x300
-    //                     word: word,
-    //                     metadata: word
-    //                 };
-    //             }
-
-    //             const data = await response.json();
-    //             // The API route returns an 'images' array. We expect at least one.
-    //             const imageSrc = data.images && data.images.length > 0 ? data.images[0] : `https://via.placeholder.com/300/FF0000/FFFFFF?text=${word}`;
-
-    //             return {
-    //                 id: index + 1,
-    //                 imageSrc: imageSrc,
-    //                 word: word,
-    //                 metadata: word
-    //             };
-    //         });
-
-    //         currentRoundCards = await Promise.all(fetchPromises);
-    //         // Shuffle cards if you want them in a random order each round
-    //         currentRoundCards = currentRoundCards.sort(() => Math.random() - 0.5);
-
-    //         setGamePhase('displayingCard'); // Ready to start the game
-    //         loadNextCard(); // Load the first card
-    //     } catch (error) {
-    //         console.error("Error pre-fetching cards:", error);
-    //         setGamePhase('error'); // Transition to an error state
-    //     }
-    // }, []);
-
-
-
     return (
-        <div className={`${styles.page} ${styles.gamePage}`}> {/* Added a gamePage class for specific styling */}
+        <div className={`${styles.page} ${styles.gamePage}`}>
             <header className={styles.gameHeader}>
-                <p>Score: {score} / {cardCount - 1}</p> {/* cardCount-1 because it increments *before* displaying */}
+                <p>Score: {score} / {cardCount - 1}</p>
                 <p>Card: {cardCount} / {MAX_CARDS_PER_ROUND}</p>
             </header>
 
@@ -168,16 +182,26 @@ export default function GameScreen() {
                 {gamePhase === 'displayingCard' && currentCard && (
                     <div className={styles.cardContainer}>
                         <img src={currentCard.imageSrc} alt={currentCard.word} className={styles.cardImage} />
-                        <p className={styles.cardWord}>{currentCard.word}</p> {/* Display the word for context/debug */}
+                        <p className={styles.cardWord}>{currentCard.word}</p>
                         <button
                             onClick={handleListenClick}
                             disabled={isListening}
                             className={`${styles.button} ${styles.listenButton}`}
                         >
-                                {isListening ? 'Listening...' : 'Say it!'}
+                            {isListening ? 'Listening...' : 'Say it!'}
                         </button>
                     </div>
                 )}
+
+                {gamePhase === 'listening' && (
+                    <div className={styles.feedbackContainer}>
+                        <p className={styles.feedbackMessage}>Listening for your response...</p>
+                        <button onClick={stopRecording} className={`${styles.button} ${styles.stopListenButton}`}>
+                            Stop Listening
+                        </button>
+                    </div>
+                )}
+
 
                 {gamePhase === 'feedback' && (
                     <div className={styles.feedbackContainer}>
@@ -227,12 +251,7 @@ export default function GameScreen() {
     );
 }
 
-
-
-
-
-
-
+// Mock function for card data (from your original code)
 const generateCardData = () => {
     const cards = [
         { id: 1, imageSrc: 'https://via.placeholder.com/150/FF0000/FFFFFF?text=Apple', word: 'apple', metadata: 'apple' },
@@ -245,62 +264,8 @@ const generateCardData = () => {
         { id: 8, imageSrc: 'https://via.placeholder.com/150/C0C0C0/000000?text=Book', word: 'book', metadata: 'book' },
         { id: 9, imageSrc: 'https://via.placeholder.com/150/D0D0D0/000000?text=Sun', word: 'sun', metadata: 'sun' },
         { id: 10, imageSrc: 'https://via.placeholder.com/150/E0E0E0/000000?text=Moon', word: 'moon', metadata: 'moon' },
-        { id: 11, imageSrc: 'https://via.placeholder.com/150/F0F0F0/000000?text=Bird', word: 'bird', metadata: 'bird' }, // More for repetition
+        { id: 11, imageSrc: 'https://via.placeholder.com/150/F0F0F0/000000?text=Bird', word: 'bird', metadata: 'bird' },
     ];
-    // Simple way to get a random card and ensure variety
     const randomIndex = Math.floor(Math.random() * cards.length);
     return cards[randomIndex];
 };
-
-// Mock function for voice input (replace with actual SpeechRecognition API)
-const listenToVoiceInput = async () => {
-    // In a real browser environment, you'd use the Web Speech API:
-    // const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    // const recognition = new SpeechRecognition();
-    // recognition.interimResults = false;
-    // recognition.lang = 'en-US';
-    // return new Promise((resolve, reject) => {
-    //     recognition.onresult = (event) => {
-    //         const transcript = event.results[0][0].transcript;
-    //         resolve(transcript.toLowerCase()); // Resolve with recognized text
-    //     };
-    //     recognition.onerror = (event) => reject(event.error);
-    //     recognition.start();
-    // });
-
-    // For now, a simple mock that simulates recognition after a delay
-    console.log("Mocking voice input...");
-    return new Promise(resolve => {
-        setTimeout(() => {
-            const mockWords = ['apple', 'banana', 'cat', 'dog', 'house', 'tree', 'car', 'book', 'sun', 'moon', 'bird', 'aple', 'banan']; // Include some common misspellings
-            const randomMockWord = mockWords[Math.floor(Math.random() * mockWords.length)];
-            resolve(randomMockWord); // Simulate recognized text
-        }, 2000); // Simulate 2 second listening
-    });
-};
-
-// Function to validate voice input against metadata
-const validateVoiceInput = (recognizedText, cardMetadata) => {
-    // Basic validation: convert both to lowercase and trim whitespace
-    return recognizedText.trim().toLowerCase() === cardMetadata.trim().toLowerCase();
-};
-
-// Your existing functions for voice output (assuming they are fixed and working)
-// Make sure these are in a utility file and imported, or defined here for this example.
-// For example: import { playVoiceFromText } from '../lib/audioUtils';
-
-// Mock playVoiceFromText if your actual one isn't imported/fixed yet
-// const playVoiceFromText = async (text) => {
-//     console.log(`Playing voice for: "${text}"`);
-//     // In a real scenario, this would use your Gemini API integration
-//     // const audioBytes = await getVoiceMessage(text);
-//     // if (audioBytes) {
-//     //     const audioBlob = new Blob([audioBytes], { type: 'audio/wav' });
-//     //     const audioUrl = URL.createObjectURL(audioBlob);
-//     //     const audio = new Audio(audioUrl);
-//     //     audio.play();
-//     //     audio.onended = () => URL.revokeObjectURL(audioUrl);
-//     //     audio.onerror = () => URL.revokeObjectURL(audioUrl);
-//     // }
-// };
-// --- End of assumed functions ---
