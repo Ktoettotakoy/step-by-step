@@ -1,13 +1,30 @@
-'use client'
+'use client';
 
+import React from 'react'; // No need for useState, useEffect
 import TextPressure from './ui/blocks/TextAnimations/TextPressure/TextPressure';
 import Dock from './ui/blocks/Components/Dock/Dock';
 import styles from "./ui/page.module.css";
 import { useRouter } from 'next/navigation';
-import { generateGuessingWords } from './utils/textGen';
+
+// No longer importing generateGuessingWords or generateImageForWord here
+// import { generateGuessingWords } from './utils/textGen';
+// import { generateImageForWord } from './utils/imageGen';
 
 export default function Home() {
   const router = useRouter();
+
+  // No states for game data generation needed here anymore
+  // const [gameCards, setGameCards] = useState([]);
+  // const [isLoadingGameData, setIsLoadingGameData] = useState(true);
+  // const [error, setError] = useState(null);
+
+  // Removed useEffect for data fetching
+
+  const handleStartGame = () => {
+    // Simply navigate to the game page
+    router.push('/game');
+  };
+
   return (
     <div className={styles.page}>
       {/* Hero Section */}
@@ -33,36 +50,17 @@ export default function Home() {
           <div className={styles.actionButtonContainer}>
             <button
               className={`${styles.button} ${styles.projectsButton}`}
-              onClick={() => {
-                // router.push('/game'); // Navigate to the Start section
-                generateGuessingWords().then((words) => {
-                  console.log("Generated words:", words);
-                  // You can handle the generated words here, e.g., display them or use them in the game
-                }).catch((error) => {
-                  console.error("Error generating words:", error);
-                });
-              }} // Navigate to the Start section}
+              onClick={handleStartGame} // Simplified onClick handler
+              // No longer disabled based on game data loading on this page
+              // disabled={isLoadingGameData || error}
             >
               Start
             </button>
-              <button
-              className={`${styles.button} ${styles.projectsButton}`}
-              onClick={() => {
-
-              }} // Navigate to the Start section}
-            >
-              Image
-            </button>
-
-             {/* <button className={`${styles.button} ${styles.cvButton}`}>
-              <span className="material-symbols-outlined" style={{ fontSize: "50px" }}>
-                download
-              </span>
-              Button 2
-            </button> */}
           </div>
+          {/* No error message display here anymore */}
+          {/* {error && <p className={styles.errorMessage}>{error}</p>} */}
         </main>
       </section>
-      </div>
+    </div>
   );
 }

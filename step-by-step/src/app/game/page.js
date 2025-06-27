@@ -1,80 +1,130 @@
-'use client'; // This must be a client component for interaction and hooks
+'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import styles from './game.module.css';
+import styles from './game.module.css'; // Adjust path as needed
+
 // Make sure these imports are correct based on your file structure
 import { getVoiceMessage, playVoiceFromText, transcribeAudioWithGemini, containsWordCaseInsensitive } from '../utils/voice';
+import { generateGuessingWords } from '../utils/textGen'; // Import word generation
+import { generateImageForWord } from '../utils/imageGen'; // Import image generation
+import LoadingSpinner from '../ui/components/LoadingSpinner'; // Import the new spinner component
 
 
-const MAX_CARDS_PER_ROUND = 5; // Reduced for easier testing, set to 10 for your requirement
+const MAX_CARDS_PER_ROUND = 10;
 
 export default function GameScreen() {
+    const [gameWords, setGameWords] = useState([]);
+    const [isLoadingGameData, setIsLoadingGameData] = useState(true);
+    const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+
     const [currentCard, setCurrentCard] = useState(null);
     const [score, setScore] = useState(0);
-    const [cardCount, setCardCount] = useState(0);
+    const [cardIndex, setCardIndex] = useState(0);
     const [wrongCards, setWrongCards] = useState([]);
-    const [gamePhase, setGamePhase] = useState('loading'); // 'loading', 'displayingCard', 'listening', 'feedback', 'results', 'wrongAnswers'
+    const [gamePhase, setGamePhase] = useState('loading');
     const [isListening, setIsListening] = useState(false);
     const [feedbackMessage, setFeedbackMessage] = useState('');
-    const [lastVoiceInput, setLastVoiceInput] = useState(''); // To display what was heard
+    const [lastVoiceInput, setLastVoiceInput] = useState('');
 
-    // MediaRecorder specific state and refs
     const mediaRecorderRef = useRef(null);
     const audioChunksRef = useRef([]);
-    const audioStreamRef = useRef(null); // To hold the MediaStream object
+    const audioStreamRef = useRef(null);
 
+    // --- EFFECT TO GENERATE GAME WORDS ON MOUNT ---
+    useEffect(() => {
+        const fetchAndSetWords = async () => {
+            try {
+                setIsLoadingGameData(true);
+                setGamePhase('loading'); // Explicitly set phase to loading for initial words
+                const words = await generateGuessingWords();
+                setGameWords(words);
+            } catch (err) {
+                console.error("Error generating game words:", err);
+                setFeedbackMessage("Failed to load game words. Please refresh.");
+                // Potentially set gamePhase to an error state to display a message
+            } finally {
+                setIsLoadingGameData(false);
+            }
+        };
 
-    // Function to load the next card
-    const loadNextCard = useCallback(() => {
-        if (cardCount >= MAX_CARDS_PER_ROUND) {
+        fetchAndSetWords();
+    }, []);
+
+    // Function to load the next card - now includes image generation
+    const loadNextCard = useCallback(async () => {
+        if (gameWords.length === 0 || isLoadingGameData) {
+            return; // Wait for words to be loaded
+        }
+
+        if (cardIndex >= gameWords.length || cardIndex >= MAX_CARDS_PER_ROUND) {
             setGamePhase('results');
             return;
         }
-        setCardCount(prev => prev + 1);
-        setCurrentCard(generateCardData()); // Using the simple mock for now
+
+        const nextWord = gameWords[cardIndex];
         setFeedbackMessage('');
         setLastVoiceInput('');
-        setGamePhase('displayingCard');
-    }, [cardCount]);
+        setGamePhase('loading'); // Set to loading while fetching image
 
-    // Initial load and subsequent card loads
+        setIsGeneratingImage(true);
+        let imageUrl;
+        try {
+            imageUrl = await generateImageForWord(nextWord);
+        } catch (error) {
+            console.error('Error generating image for word:', nextWord, error);
+            imageUrl = 'https://via.placeholder.com/150/CCCCCC/000000?text=Error';
+        } finally {
+            setIsGeneratingImage(false);
+        }
+
+        setCurrentCard({
+            id: nextWord,
+            imageSrc: imageUrl,
+            word: nextWord,
+            metadata: nextWord,
+        });
+        setCardIndex(prev => prev + 1);
+        setGamePhase('displayingCard');
+    }, [cardIndex, gameWords, isLoadingGameData]);
+
+    // Initial card load and subsequent card loads
     useEffect(() => {
-        if (gamePhase === 'loading') {
+        // Trigger loading the first card once `gameWords` are available
+        // and if we are in the 'loading' phase (e.g., after initial word fetch or new round)
+        // and no image is currently being generated, and currentCard isn't set yet for this phase
+        if (!isLoadingGameData && gameWords.length > 0 && gamePhase === 'loading' && !currentCard && !isGeneratingImage) {
             loadNextCard();
         }
-    }, [gamePhase, loadNextCard]);
+    }, [isLoadingGameData, gameWords, gamePhase, currentCard, isGeneratingImage, loadNextCard]);
 
     // Play card word audio when a new card is displayed
     useEffect(() => {
-        if (gamePhase === 'displayingCard' && currentCard) {
-            // Add a small delay before playing to ensure the component is rendered
+        if (gamePhase === 'displayingCard' && currentCard && !isGeneratingImage) {
             const playTimeout = setTimeout(() => {
                 playVoiceFromText(currentCard.word);
-            }, 500); // Adjust delay as needed
+            }, 500);
 
-            return () => clearTimeout(playTimeout); // Cleanup timeout
+            return () => clearTimeout(playTimeout);
         }
-    }, [gamePhase, currentCard]);
+    }, [gamePhase, currentCard, isGeneratingImage]);
 
     // Cleanup function for media stream
     useEffect(() => {
         return () => {
-            // Stop all tracks on the stream when the component unmounts
             if (audioStreamRef.current) {
                 audioStreamRef.current.getTracks().forEach(track => track.stop());
                 audioStreamRef.current = null;
             }
         };
-    }, []); // Run once on mount and cleanup on unmount
+    }, []);
 
 
     const startRecording = async () => {
         setIsListening(true);
         setFeedbackMessage('Listening...');
-        setGamePhase('listening'); // Indicate that we are listening
+        setGamePhase('listening');
 
         try {
-            // Request microphone access
             audioStreamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true });
             mediaRecorderRef.current = new MediaRecorder(audioStreamRef.current);
             audioChunksRef.current = [];
@@ -84,7 +134,6 @@ export default function GameScreen() {
             };
 
             mediaRecorderRef.current.onstop = async () => {
-                // Ensure mediaRecorder is defined before proceeding
                 if (!mediaRecorderRef.current) return;
 
                 const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
@@ -92,12 +141,12 @@ export default function GameScreen() {
 
                 setIsListening(false);
                 setFeedbackMessage('Transcribing...');
-                setGamePhase('feedback'); // Move to feedback phase early
+                setGamePhase('feedback');
 
                 let recognizedText = '';
                 try {
                     recognizedText = await transcribeAudioWithGemini(audioBlob);
-                    recognizedText = recognizedText ? recognizedText.trim() : ''; // Clean up text
+                    recognizedText = recognizedText ? recognizedText.trim() : '';
                     setLastVoiceInput(recognizedText);
 
                     if (currentCard && containsWordCaseInsensitive(recognizedText, currentCard.word)) {
@@ -116,15 +165,13 @@ export default function GameScreen() {
                     setFeedbackMessage('Could not transcribe audio. Please try again.');
                     setLastVoiceInput('');
                 } finally {
-                    // Stop all tracks on the stream to release microphone
                     if (audioStreamRef.current) {
                         audioStreamRef.current.getTracks().forEach(track => track.stop());
                         audioStreamRef.current = null;
                     }
-                    // After showing feedback for a brief moment, move to next card or results
                     setTimeout(() => {
                         loadNextCard();
-                    }, 2000); // Show feedback for 2 seconds
+                    }, 2000);
                 }
             };
 
@@ -134,9 +181,8 @@ export default function GameScreen() {
             setFeedbackMessage('Microphone access denied or error starting recording. Please allow microphone access.');
             setIsListening(false);
             setGamePhase('feedback');
-            // Give user time to read error, then allow them to try again
             setTimeout(() => {
-                loadNextCard(); // Or set phase back to 'displayingCard' if you want them to re-attempt the same card
+                loadNextCard();
             }, 3000);
         }
     };
@@ -144,7 +190,7 @@ export default function GameScreen() {
     const stopRecording = () => {
         if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
             mediaRecorderRef.current.stop();
-            setIsListening(false); // Will be set to true again by onstop, but good to reset
+            setIsListening(false);
         }
     };
 
@@ -158,24 +204,58 @@ export default function GameScreen() {
 
     const handleStartNewRound = () => {
         setScore(0);
-        setCardCount(0);
+        setCardIndex(0);
         setWrongCards([]);
-        setGamePhase('loading'); // This will trigger loadNextCard
+        setGameWords([]); // Clear words to force re-fetch and generate new words
+        setIsLoadingGameData(true); // Set to true to trigger the useEffect to fetch new words
+        setGamePhase('loading');
+        setCurrentCard(null);
     };
 
     const handleShowWrongAnswers = () => {
         setGamePhase('wrongAnswers');
     };
 
-    if (gamePhase === 'loading') {
-        return <div className={styles.gameContainer}>Loading game...</div>;
+    // --- Conditional Rendering for Loading ---
+    if (isLoadingGameData) {
+        return (
+            <div className={`${styles.page} ${styles.gamePage}`}>
+                <main className={styles.gameMain}> {/* Use gameMain for centering */}
+                    <LoadingSpinner message="Generating game words..." />
+                </main>
+            </div>
+        );
+    }
+
+    if (gameWords.length === 0) {
+        return (
+            <div className={`${styles.page} ${styles.gamePage}`}>
+                <main className={styles.gameMain}>
+                    <p className={styles.feedbackMessage}>No game words generated. Please try again.</p>
+                    <button onClick={handleStartNewRound} className={`${styles.button} ${styles.resultsButton}`}>
+                        Retry
+                    </button>
+                </main>
+            </div>
+        );
+    }
+
+    // This phase occurs while an individual card's image is being generated or prepared
+    if (gamePhase === 'loading' || (gamePhase === 'displayingCard' && !currentCard)) {
+        return (
+            <div className={`${styles.page} ${styles.gamePage}`}>
+                <main className={styles.gameMain}>
+                    <LoadingSpinner message={isGeneratingImage ? "Generating card image..." : "Preparing card..."} />
+                </main>
+            </div>
+        );
     }
 
     return (
         <div className={`${styles.page} ${styles.gamePage}`}>
             <header className={styles.gameHeader}>
-                <p>Score: {score} / {cardCount - 1}</p>
-                <p>Card: {cardCount} / {MAX_CARDS_PER_ROUND}</p>
+                <p>Score: {score} / {cardIndex - 1}</p>
+                <p>Card: {cardIndex} / {MAX_CARDS_PER_ROUND}</p>
             </header>
 
             <main className={styles.gameMain}>
@@ -201,7 +281,6 @@ export default function GameScreen() {
                         </button>
                     </div>
                 )}
-
 
                 {gamePhase === 'feedback' && (
                     <div className={styles.feedbackContainer}>
@@ -250,22 +329,3 @@ export default function GameScreen() {
         </div>
     );
 }
-
-// Mock function for card data (from your original code)
-const generateCardData = () => {
-    const cards = [
-        { id: 1, imageSrc: 'https://via.placeholder.com/150/FF0000/FFFFFF?text=Apple', word: 'apple', metadata: 'apple' },
-        { id: 2, imageSrc: 'https://via.placeholder.com/150/00FF00/FFFFFF?text=Banana', word: 'banana', metadata: 'banana' },
-        { id: 3, imageSrc: 'https://via.placeholder.com/150/0000FF/FFFFFF?text=Cat', word: 'cat', metadata: 'cat' },
-        { id: 4, imageSrc: 'https://via.placeholder.com/150/FFFF00/000000?text=Dog', word: 'dog', metadata: 'dog' },
-        { id: 5, imageSrc: 'https://via.placeholder.com/150/00FFFF/000000?text=House', word: 'house', metadata: 'house' },
-        { id: 6, imageSrc: 'https://via.placeholder.com/150/FF00FF/FFFFFF?text=Tree', word: 'tree', metadata: 'tree' },
-        { id: 7, imageSrc: 'https://via.placeholder.com/150/A0A0A0/FFFFFF?text=Car', word: 'car', metadata: 'car' },
-        { id: 8, imageSrc: 'https://via.placeholder.com/150/C0C0C0/000000?text=Book', word: 'book', metadata: 'book' },
-        { id: 9, imageSrc: 'https://via.placeholder.com/150/D0D0D0/000000?text=Sun', word: 'sun', metadata: 'sun' },
-        { id: 10, imageSrc: 'https://via.placeholder.com/150/E0E0E0/000000?text=Moon', word: 'moon', metadata: 'moon' },
-        { id: 11, imageSrc: 'https://via.placeholder.com/150/F0F0F0/000000?text=Bird', word: 'bird', metadata: 'bird' },
-    ];
-    const randomIndex = Math.floor(Math.random() * cards.length);
-    return cards[randomIndex];
-};
