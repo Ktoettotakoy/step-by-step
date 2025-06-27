@@ -93,7 +93,7 @@ async function transcribeAudioWithGemini(audioBlob) {
         const base64Audio = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
 
         // Get the model for transcription
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
         const result = await model.generateContent([
             {
@@ -102,7 +102,7 @@ async function transcribeAudioWithGemini(audioBlob) {
                     data: base64Audio,
                 },
             },
-            "Please transcribe this audio to text. Only return the transcribed text, nothing else."
+            "Please transcribe this audio to text.  The audio is in english and is the name of some animal. Only return the transcribed text, nothing else."
         ]);
 
         const response = await result.response;
