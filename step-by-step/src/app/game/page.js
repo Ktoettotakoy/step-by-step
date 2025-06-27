@@ -12,6 +12,33 @@ import LoadingSpinner from '../ui/components/LoadingSpinner'; // Import the new 
 
 const MAX_CARDS_PER_ROUND = 3;
 
+function playCorrectSound() {
+    // The path '/correct.mp3' works because the file is in the /public directory.
+    
+    
+    const audio = new Audio('correct.mp3');
+    
+    // .play() returns a Promise, so we should handle potential errors.
+    audio.play().catch(error => {
+      // Autoplay was prevented or another error occurred.
+      console.error("Error playing audio:", error);
+    });
+  }
+
+  function playWrongSound() {
+    // The path '/correct.mp3' works because the file is in the /public directory.
+    
+    
+    const audio = new Audio('wrong.mp3');
+    
+    // .play() returns a Promise, so we should handle potential errors.
+    audio.play().catch(error => {
+      // Autoplay was prevented or another error occurred.
+      console.error("Error playing audio:", error);
+    });
+  }
+
+
 export default function GameScreen() {
     // This will now store the full card objects (word + imageSrc)
     const [gameCards, setGameCards] = useState([]);
@@ -161,7 +188,7 @@ export default function GameScreen() {
                 setIsListening(false);
                 setFeedbackMessage('Transcribing...');
                 setGamePhase('feedback');
-
+                // playCorrectSound
                 let recognizedText = '';
                 try {
                     recognizedText = await transcribeAudioWithGemini(audioBlob);
@@ -171,10 +198,12 @@ export default function GameScreen() {
                     if (currentCard && containsWordCaseInsensitive(recognizedText, currentCard.word)) {
                         setScore(prev => prev + 1);
                         setFeedbackMessage('Correct!');
-                        await playVoiceFromText('Correct!');
+                        playCorrectSound();
+                        //await playVoiceFromText('Correct!');
                     } else {
                         setFeedbackMessage(`Incorrect. You said: "${recognizedText}". The correct word was: "${currentCard.word}".`);
-                        await playVoiceFromText('Try again!');
+                        playWrongSound();
+                        //await playVoiceFromText('Try again!');
                         if (currentCard) {
                             setWrongCards(prev => [...prev, { ...currentCard, userAttempt: recognizedText }]);
                         }
@@ -297,9 +326,14 @@ export default function GameScreen() {
                 )}
 
                 {gamePhase === 'listening' && (
-                    <div className={styles.feedbackContainer}>
-                        <p className={styles.feedbackMessage}>Listening for your response...</p>
-                        <button onClick={stopRecording} className={`${styles.button} ${styles.stopListenButton}`}>
+
+                    <div className={styles.cardContainer}>
+                        <img src={currentCard.imageSrc} alt={currentCard.word} className={styles.cardImage} />
+                        <p className={styles.cardWord}>{currentCard.word}</p>
+                        <button
+                            onClick={stopRecording}
+                            className={`${styles.button} ${styles.listenButton}`}
+                        >
                             Stop Listening
                         </button>
                     </div>
