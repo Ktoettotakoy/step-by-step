@@ -10,7 +10,7 @@ import { generateImageForWord } from '../utils/imageGen'; // Import image genera
 import LoadingSpinner from '../ui/components/LoadingSpinner'; // Import the new spinner component
 
 
-const MAX_CARDS_PER_ROUND = 5;
+const MAX_CARDS_PER_ROUND = 4;
 
 function playCorrectSound() {
     // The path '/correct.mp3' works because the file is in the /public directory.
