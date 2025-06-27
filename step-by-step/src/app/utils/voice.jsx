@@ -91,8 +91,88 @@ async function playVoiceFromText(inputText) {
         URL.revokeObjectURL(audioUrl);
         console.error("Error playing audio.");
     };
-    
+
 }
 
+/**
+ * Sends an audio Blob to the Gemini API for speech-to-text conversion.
+ * @param {Blob} audioBlob The audio Blob to send.
+ * @returns {Promise<string|null>} A promise that resolves with the transcribed text, or null if there was an error.
+ */
+async function transcribeAudioWithGemini(audioBlob) {
+    try {
+      // Read the audio Blob as a Base64 string
+      const reader = new FileReader();
+      reader.readAsDataURL(audioBlob);
+  
+      return new Promise((resolve, reject) => {
+        reader.onloadend = async () => {
+          const base64Audio = reader.result.split(',')[1]; // Get the Base64 string
+  
+          // Call the Gemini API for speech-to-text
+          // Replace 'your-speech-to-text-model' with the actual Gemini model name
+          // for speech recognition. Refer to the Gemini API documentation.
+          const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); // Use an appropriate model name
+  
+          const result = await model.generateContent({
+            contents: [
+              {
+                parts: [
+                  {
+                    inlineData: {
+                      mimeType: audioBlob.type, // Use the MIME type from the Blob
+                      data: base64Audio,
+                    },
+                  },
+                ],
+              },
+              {
+                parts: [{ text: "Transcribe the following audio." }], // Instruct Gemini to transcribe
+              },
+            ],
+          });
+  
+          const response = await result.response;
+          const text = response.text(); // Get the transcribed text
+  
+          if (text) {
+            resolve(text);
+          } else {
+            console.error("No text transcribed from audio.");
+            resolve(null);
+          }
+        };
+  
+        reader.onerror = (error) => {
+          console.error("Error reading audio blob:", error);
+          reject(error);
+        };
+      });
+    } catch (error) {
+      console.error("Error transcribing audio with Gemini:", error);
+      return null;
+    }
+}
+
+
+
+  function containsWordCaseInsensitive(text, word) {
+    if (!text || !word) {
+      return false; // Handle empty or null inputs
+    }
+  
+    // Escape special characters in the word to use in a regex
+    const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  
+    // Create a regular expression to find the word with word boundaries
+    // 'i' flag for case-insensitive matching
+    const regex = new RegExp(`\\b${escapedWord}\\b`, 'i');
+  
+    // Test the text against the regex
+    return regex.test(text);
+  }
+  
+
+
 // Export only the functions that are intended for client-side use.
-export { getVoiceMessage, playVoiceFromText };
+export { getVoiceMessage, playVoiceFromText, transcribeAudioWithGemini, containsWordCaseInsensitive };
