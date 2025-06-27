@@ -2,10 +2,9 @@
   // Replace 'YOUR_GEMINI_API_KEY' with your actual API key for the demo
   // In a real application, this would be handled on the backend
   import { GoogleGenerativeAI } from "@google/generative-ai";
-  
-  const API_KEY = "YOUR_GEMINI_API_KEY"; // Replace with your API key
-  const genAI = new GoogleGenerativeAI(API_KEY);
-  
+
+  const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY);
+
   /**
    * Calls the Gemini API to generate a cartoon-style image based on a prompt.
    *
@@ -17,38 +16,38 @@
     try {
       // Replace 'your-image-generation-model' with the actual Gemini model name for image generation
       const model = genAI.getGenerativeModel({ model: "your-image-generation-model" });
-  
+
       const prompt = `
         we are doing the app that generates images for kids.
         create the cartoon style image of
         1. any animal
         2. the number up to 10
         3. the letter of the alphabet.
-  
+
         as output, give back the image and the single word that explain what's in the image
       `;
-  
+
       const result = await model.generateContent(prompt);
       const response = await result.response;
-  
+
       // Assuming the API response contains image data and a text part with the word
       // You'll need to adjust this based on the actual API response structure
       const image = response.image; // Adjust this to extract the image data correctly
       const word = response.text(); // Adjust this to extract the descriptive word correctly
-  
+
       if (image && word) {
         return { image, word };
       } else {
         console.error("Gemini API response did not contain both image and word.");
         return null;
       }
-  
+
     } catch (error) {
       console.error("Error generating image with Gemini:", error);
       return null;
     }
   }
-  
+
   // Example usage:
   // async function displayGeneratedImage() {
   //   const result = await generateImageWithGemini();
@@ -62,8 +61,8 @@
   //     console.log("Failed to generate image.");
   //   }
   // }
-  
+
   // displayGeneratedImage();
-  
+
   // You can export this function if needed in other files
 export { generateImageWithGemini };

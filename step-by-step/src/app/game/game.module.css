@@ -9,7 +9,6 @@
   justify-content: flex-start; /* Align content to the top */
 }
 
-/* Base section styles (hero section) */
 .section {
   min-height: 70vh;
   max-height: 100vh;
