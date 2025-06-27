@@ -171,10 +171,10 @@ export default function GameScreen() {
                     if (currentCard && containsWordCaseInsensitive(recognizedText, currentCard.word)) {
                         setScore(prev => prev + 1);
                         setFeedbackMessage('Correct!');
-                        await playVoiceFromText('Correct!');
+                        //await playVoiceFromText('Correct!');
                     } else {
                         setFeedbackMessage(`Incorrect. You said: "${recognizedText}". The correct word was: "${currentCard.word}".`);
-                        await playVoiceFromText('Try again!');
+                        //await playVoiceFromText('Try again!');
                         if (currentCard) {
                             setWrongCards(prev => [...prev, { ...currentCard, userAttempt: recognizedText }]);
                         }
@@ -297,9 +297,14 @@ export default function GameScreen() {
                 )}
 
                 {gamePhase === 'listening' && (
-                    <div className={styles.feedbackContainer}>
-                        <p className={styles.feedbackMessage}>Listening for your response...</p>
-                        <button onClick={stopRecording} className={`${styles.button} ${styles.stopListenButton}`}>
+
+                    <div className={styles.cardContainer}>
+                        <img src={currentCard.imageSrc} alt={currentCard.word} className={styles.cardImage} />
+                        <p className={styles.cardWord}>{currentCard.word}</p>
+                        <button
+                            onClick={stopRecording}
+                            className={`${styles.button} ${styles.listenButton}`}
+                        >
                             Stop Listening
                         </button>
                     </div>
